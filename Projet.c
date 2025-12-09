@@ -23,7 +23,6 @@ void Menu(){
     printf("4)Rechercher un produit .\n");
     printf("5)Afficher la liste des produit .\n");
     printf("6)Sauvegarder la liste des produits.\n");
-    printf("7)Charger Les produits \n");
     printf("**************************************************\n");
 }
 int Lire_Choix(char *message,int from, int to){
@@ -124,7 +123,7 @@ void modifier(stProduit *Table[Taille_Table],int indexe, int id_modifie){
             break;
             case 3: 
             printf("Entrez le nouveau prix : \n");
-            scanf(" %.2f",&ptr->prix);
+            scanf(" %f",&ptr->prix);
             break;
             case 4:
             printf("Entrez la nouvelle quantite : \n");
@@ -326,6 +325,7 @@ void Gestion_Produit(){
     char nom[20];
     stHach HashTable;
     initialiser_Table(HashTable.Table);
+    charger(HashTable.Table);
    int nbre,indexe,id,choix_affichage,choix_Re;
    char choix;
    stProduit *Produit;
@@ -380,9 +380,6 @@ void Gestion_Produit(){
     break;
     case 6:
     Sauvegarder(HashTable.Table);
-    break;
-    case 7:
-    charger(HashTable.Table);
     break;
     }
    }while(choix!=0);
