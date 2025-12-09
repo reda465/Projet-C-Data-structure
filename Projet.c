@@ -3,7 +3,8 @@
 #include<string.h>
 #define Taille_Table 13
 typedef struct Produit{ 
-int id;               
+int id;     
+float prix;          
 char nom[30];         
 int quantite;         
 struct Produit *suivant;
@@ -15,12 +16,15 @@ typedef struct stHach{
     stProduit *Table[Taille_Table];
 }stHach;
 void Menu(){
+    printf("******************Chere gerant(e) :-)****************\n");
     printf("1)Ajouter Produit .\n");
     printf("2)Modifier Produit .\n");
     printf("3)Supprimer Produit .\n");
     printf("4)Rechercher un produit .\n");
     printf("5)Afficher la liste des produit .\n");
-    printf("6)Sauvegarder et charger la liste des produits.\n");
+    printf("6)Sauvegarder la liste des produits.\n");
+    printf("7)Charger Les produits \n");
+    printf("**************************************************\n");
 }
 int Lire_Choix(char *message,int from, int to){
     int Choix=0;
@@ -40,7 +44,7 @@ int Lire_Id(char *message){
 }
 char Continuer(){
     char choix=' ';
-    printf(" Est ce que vous voulez continuer (Y/y) ou bien (N/n) \n");
+    printf(" Est ce que vous voulez changer quelque chose d'autre dans ce produit : (Y/y) ou bien (N/n) \n");
     scanf(" %c",&choix);
     return choix;
 }
@@ -49,11 +53,13 @@ void Lire_Info(stProduit *Produit){
     scanf(" %d",&(Produit->id));
     printf("Entrez le nom de Produit : \n ");
     scanf(" %s",(Produit->nom));
-    printf("Entrez la quantité de Produit : \n ");
+    printf("Entrez le prix de produit : \n");
+    scanf(" %f",&Produit->prix);
+    printf("Entrez la quantite de Produit : \n ");
     scanf(" %d", &Produit->quantite);
 }
 void Print_Info(stProduit *ptr){
-    printf("Id : %d Nom : %s , quantite : %d \n",ptr->id,ptr->nom,ptr->quantite);
+    printf("Id : %d Nom : %s , Prix : %.2f, quantite : %d \n",ptr->id,ptr->nom,ptr->prix,ptr->quantite);
 }
 stProduit *Creer_Produit(){
     stProduit *Produit=(stProduit *)malloc(sizeof(stProduit));
@@ -62,7 +68,6 @@ stProduit *Creer_Produit(){
         exit(0);
     }
     Produit->suivant=NULL;
-    Lire_Info(Produit);
     return Produit;
 }
 void Ajouter_Produit(stProduit *Table[Taille_Table],int indexe, stProduit *Produit ){
@@ -71,95 +76,90 @@ void Ajouter_Produit(stProduit *Table[Taille_Table],int indexe, stProduit *Produ
         return ;
     }
     stProduit *ptr=Table[indexe];
-    while(ptr->suivant!=NULL) ptr=ptr->suivant;
-    ptr->suivant=Produit;
+    Produit->suivant=Table[indexe];
+    Table[indexe]=Produit;
 }
-/*int Menu_Changement(){
+int Menu_Changement(){
     int choix=0;
     do{
+        printf("Les types de changement : \n");
         printf("1)Changer l'ID \n");
         printf("2)Changer le nom \n");
-        printf("3)Changer la quantite \n");
-        choix=Lire_Choix("Entrez votre choix (Entre 1 et 3)",1,3);
-    }while(choix>3 && choix<0);
+        printf("3)Changer le Prix : \n");
+        printf("4)Changer la quantite \n");
+        choix=Lire_Choix("Entrez votre choix (Entre 1 et 4)",1,4);
+    }while(choix>4 && choix<0);
     return choix;
-}*/
+}
 void Copier_Info(stProduit *P1,stProduit *P2){
     P1->id=P2->id;
     strcpy(P1->nom,P2->nom);
+    P1->prix=P2->prix;
     P1->quantite=P2->quantite;
 }
 void supprimer(stProduit * Table[Taille_Table], int indexe, int id_supprimer);
-/*void modifier(stProduit *Table[Taille_Table],int indexe, int id_modifie){
+void modifier(stProduit *Table[Taille_Table],int indexe, int id_modifie){
     char choix;
     if(Table[indexe]==NULL){
-        printf("Pas d'element à modifier .\n");
+        printf("\tPas d'element à modifier :-( .\t\n");
         return ;
     }
     stProduit *ptr=Table[indexe];
-    while(ptr->id!=id_modifie && ptr!=NULL) ptr=ptr->suivant;
+    while(ptr!=NULL && ptr->id!=id_modifie  ) ptr=ptr->suivant;
     do{
         int choix_changement=Menu_Changement();
         switch(choix_changement){
             case 1:
             printf("Entrez le nouveau ID : \n");
-            scanf(" %d",&ptr->id);
-            Ajouter_Produit(Table,hachage(ptr->id),ptr);
+            stProduit *Nvl_Case=Creer_Produit();
+            scanf(" %d",&Nvl_Case->id);
+            strcpy(Nvl_Case->nom,ptr->nom);
+            Nvl_Case->quantite=ptr->quantite;
+            Ajouter_Produit(Table,hachage(Nvl_Case->id),Nvl_Case);
             supprimer(Table,indexe,id_modifie);
             break;
             case 2:
             printf("Entrez le nouveau nom : \n");
-            scanf(" [^\n]", ptr->nom);
+            scanf(" %s", ptr->nom);
             break;
-            case 3:
+            case 3: 
+            printf("Entrez le nouveau prix : \n");
+            scanf(" %.2f",&ptr->prix);
+            break;
+            case 4:
             printf("Entrez la nouvelle quantite : \n");
             scanf(" %d",&ptr->quantite);
             break;
         }
+        printf("-->Changement fait avec succes :-) \t\n\n");
         choix=Continuer();
     }while(choix=='Y' || choix=='y');
-    printf("Entrez la nouvelle quantite : \n");
-    scanf(" %d",&ptr->quantite);
-}*/
-void modifier(stProduit *Table[Taille_Table],int indexe, int id_modifie){
-    char choix;
-    if(Table[indexe]==NULL){
-        printf("Pas d'element à modifier .\n");
-        return ;
-    }
-    stProduit *ptr=Table[indexe];
-    while(ptr->id!=id_modifie && ptr!=NULL) ptr=ptr->suivant;
-    if(ptr==NULL){
-        printf("cet element n'existe pas");
-        return;
-    }
-    printf("Les nouvelles modifications \n");
-    stProduit *produit=Creer_Produit();
-    supprimer(Table,indexe,id_modifie);
-    Ajouter_Produit(Table,hachage(produit->id),produit);
 }
+
 void supprimer(stProduit * Table[Taille_Table], int indexe, int id_supprimer){
-    stProduit *ptr=Table[indexe];
+    stProduit *ptr=*(Table+indexe);
     if(ptr==NULL){
         printf("Pas d'element à supprimer .\n");
         return ;
     }
     if(ptr->id==id_supprimer){
+        Table[indexe]=ptr->suivant;
         free(ptr);
-        Table[indexe]=NULL;
         return;
     }
     stProduit *ptr1=ptr->suivant;
-    while(ptr1->id!=id_supprimer && ptr1 != NULL){
+    while( ptr1 != NULL && ptr1->id!=id_supprimer ){
         ptr=ptr1;
         ptr1=ptr1->suivant;
     } 
     ptr->suivant=ptr1->suivant;
     free(ptr1);
+    printf(" \t\t Suppression avec succes :-)  \t\n");
 }
-void Menu_Affichage(){
-    printf("1)Affichage par id.\n");
-    printf("2)Affichage par nom .\n");
+void Menu_Recherche(){
+    printf("*********Type de recherche********** \n");
+    printf("1)Recherche par id.\n");
+    printf("2)Recherche par nom .\n");
 }
 void Rechercher_Par_Id(stProduit * Table[Taille_Table], int indexe, int id_Recherche){
     if(Table[indexe]==NULL){
@@ -167,7 +167,7 @@ void Rechercher_Par_Id(stProduit * Table[Taille_Table], int indexe, int id_Reche
         return ;
     }
     stProduit *ptr=Table[indexe];
-    while(ptr->id != id_Recherche && ptr!= NULL){
+    while(ptr!= NULL && ptr->id != id_Recherche ){
         ptr=ptr->suivant;
     }
     if(ptr==NULL){
@@ -285,10 +285,11 @@ void Sauvegarder(stProduit *Tab[Taille_Table]){
         perror("erreur !\n");
         exit(0);
     }
+
     for(int i=0;i<13;i++){
     ptr=Tab[i];
     while(ptr!=NULL){
-        fprintf(pf,"ID : %d , Nom : %s , Quantite : %d \n",ptr->id,ptr->nom,ptr->quantite);
+        fprintf(pf," %d|%s|%.2f|%d\n",ptr->id,ptr->nom,ptr->prix,ptr->quantite);
         ptr=ptr->suivant;
     }
    }
@@ -299,19 +300,42 @@ void initialiser_Table(stProduit * table[Taille_Table]){
         table[i]=NULL;
     }
 }
-void Gestion_Client(){
+void Menu_affichage(){
+    printf("\t****Quels type d'\affichage voulez vous Monsieur ?****\t\n");
+    printf("1)Trie\n");
+    printf("2)Non Trie\n");
+}
+void charger(stProduit *Table[Taille_Table]){
+    FILE *pf=fopen("produit.txt","r");
+    if(pf==NULL){
+        perror("erreur !\n");
+        exit(0);
+    }
+    while(1){
+        stProduit *ptr=Creer_Produit();
+        if(fscanf(pf,"%d|%[^|]|%f|%d",&ptr->id,ptr->nom,&ptr->prix,&ptr->quantite)==4){
+            Ajouter_Produit(Table,hachage(ptr->id),ptr);
+        }
+        else{
+            break;
+        }
+    }
+    fclose(pf);
+}
+void Gestion_Produit(){
     char nom[20];
     stHach HashTable;
     initialiser_Table(HashTable.Table);
-   int nbre,indexe,id,choix_affichage;
+   int nbre,indexe,id,choix_affichage,choix_Re;
    char choix;
    stProduit *Produit;
    do{
     Menu();
-    choix=Lire_Choix(" Entrez votre choix : ",0,6);
+    choix=Lire_Choix("Entrez votre choix : ",0,7);
     switch(choix){
     case 1:
     Produit=Creer_Produit();
+    Lire_Info(Produit);
     indexe=hachage(Produit->id);
     Ajouter_Produit(HashTable.Table,indexe,Produit);
     break;
@@ -326,23 +350,24 @@ void Gestion_Client(){
     supprimer(HashTable.Table,indexe,id);
     break;
     case 4:
-    Menu_Affichage();
-    choix_affichage=Lire_Choix("Entrez votre choix : ",1,2);
-    switch(choix_affichage){
+    Menu_Recherche();
+    choix_Re=Lire_Choix("Entrez votre choix : ",1,2);
+    switch(choix_Re){
     case 1:
     id=Lire_Id("Entrez l'ID du produit que vous voulez rechercher : \n");
     indexe=hachage(id);
     Rechercher_Par_Id(HashTable.Table,indexe,id);
     break;
     case 2 :
-    printf("entrez Le nom du produit  : \n");
+    printf("Entrez Le nom du produit  : \n");
     scanf(" %s", nom);
     Rechercher_Par_nom(HashTable.Table,nom);
     break;
     }
     break;
     case 5:
-    choix_affichage=Lire_Choix("1)Trie \n 2)Non Trie \n Entrez votre choix : \n ",1,2);
+    Menu_affichage();
+    choix_affichage=Lire_Choix("Entrez votre choix : \n ",1,2);
     switch (choix_affichage)
     {
     case 1:
@@ -356,9 +381,12 @@ void Gestion_Client(){
     case 6:
     Sauvegarder(HashTable.Table);
     break;
+    case 7:
+    charger(HashTable.Table);
+    break;
     }
    }while(choix!=0);
 }
 int main(){
-    Gestion_Client();
+    Gestion_Produit();
 }
