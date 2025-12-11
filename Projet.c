@@ -25,17 +25,31 @@ typedef struct Client{
 typedef struct ClientArbre{
     Client* racine;
 }ClientArbre;
+//checkAllocation()
+checkAllocationArbre(ClientArbre* Arbre)
+{
+    if(Arbre == NULL)
+    {
+        exit(EXIT_FAILURE);
+    }
+}
 // Initialisation et reservation de l'éspace mémoire.
 ClientArbre* InitArbre(void){
     ClientArbre* Arbre = (ClientArbre*) malloc(sizeof(ClientArbre));
+    checkAllocationArbre(Arbre);
+    Arbre->racine = NULL;
+    return Arbre;
 }
 void Infixe(Client* noeud) //pour ordre alphabétique
 {
+    if(noeud != NULL){
     Infixe(noeud->gauche);
     printf("ID : %d | Nom du client : %s | Total depensé : %.2f", noeud->id, noeud->nom, noeud->totalDepense);
     Infixe(noeud->droite);
 }
-Client creeNoeud(Client client, Client* droite, Client* gauche)
+return;
+}
+Client* creeNoeud(Client client, Client* droite, Client* gauche)
 {
     Client* cli = malloc(sizeof(Client));
     cli->id = client.id;
@@ -43,9 +57,69 @@ Client creeNoeud(Client client, Client* droite, Client* gauche)
     cli->totalDepense = client.totalDepense;
     cli->droite = droite;
     cli->gauche = gauche;
+    return cli;
+
 }
+//fct ajouterclient()
 void ajouterClient(Client* noeud,Client client)
 {
+if(noeud==NULL) {
+noeud = creeNoeud(client,NULL,NULL);
+return noeud;
+}
+else{
+    if(strcmp(client.nom , noeud->nom) > 1)
+    ajouterClient(noeud->droite,client);
+    else if (strcmp(client.nom , noeud->nom) < 1)
+    ajouterClient(noeud->gauche,client);
+    return noeud;
+}
+
+}
+Client* rechercherClient(Client cli, Client* noeud)
+{
+    if(noeud == NULL) 
+    return 0;
+    else if( strcmp(noeud->nom,cli.nom) == 1) return noeud;
+    else if( strcmp(cli.nom , noeud->nom) > 1) return RechercherClient(cli,noeud->gauche);
+    else return RechercherClient(cli,noeud->droite);
+}
+
+Client* supprimerClient(Client* noeud,Client cli)
+{
+    if(noeud == NULL)
+    return noeud;
+    if ( strcmp(noeud->nom,cli.nom) > 1 )
+    noeud->gauche = supprimerClient(noeud->gauche,cli);
+    else if ( strcmp(noeud->nom,cli.nom) < 1 )
+    noeud->droite = supprimerClient(noeud->droite,cli);
+    else //trouvee debut de decalage
+    {
+//cas d'un arabre sans enfants
+    if (noeud->droite == NULL && noeud->gauche == NULL)
+    free(noeud);
+    else if(noeud->droite == NULL){ // pas de fils droit
+    Client* tmp;
+    strcpy(tmp->nom, noeud->gauche);
+    free(noeud);
+    return tmp;
+}
+else if(noeud->gauche == NULL){
+    Client* tmp;
+    strcpy(tmp->nom, noeud->droite);
+    free(noeud);
+    return tmp;
+    }
+    else {
+        //pour conserver l'ordre
+        Client* successeur = min(noeud->droite);
+        strcpy(noeud->nom, successeur->nom);
+        Client buffer;
+        strcpy(buffer.nom, successeur->nom);
+        noeud->droite = supprimerClient(noeud->droite,buffer);
+    }
+    return noeud; 
+}
 
 }
 int forcerLireEntier(void)
@@ -68,6 +142,7 @@ int forcerLireEntier(void)
     return choix; 
 }
 
+
 //affichage menu des options
 int menuClients(void){ //inplement a better asthetic later 
     printf("==========ESPACE CLIENTS====================="
@@ -78,6 +153,7 @@ int menuClients(void){ //inplement a better asthetic later
         "5. Sauvegarder dans \"clients.txt\"\n " 
         "6. Charger depuis \"clients.txt\"\n ");
         int choix = forcerLireEntier();
+        return choix;
 }
 
 int hachage(int id) { 
