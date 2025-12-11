@@ -146,7 +146,20 @@
         return choix; 
     }
 
+    void sauvegarderArbre(Client* client)
+    {
+        FILE* file = fopen("clients.txt","a+");
+        fprintf(file,"%d|%s|%d\n",client->id,client->nom,client->totalDepense);
+        fclose(file);
+    }
 
+    void sauvegarderRecursive(Client* client){
+    if(client!=NULL){
+        sauvegarderRecursive(client->droite);
+        sauvegarderArbre(client);
+        sauvegarderRecursive(client->gauche);
+    }
+}
     //affichage menu des options
     int menuClients(void){ //inplement a better asthetic later 
         printf("==========ESPACE CLIENTS====================="
