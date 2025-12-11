@@ -1,1 +1,2 @@
-ID : 147 , Nom : dddd , Quantite : 6 
+ 44|OMAR|1.00|100
+ 12|REDA|90.00|90

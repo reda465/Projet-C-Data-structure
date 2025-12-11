@@ -1,14 +1,44 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
+#include<time.h>
 #define Taille_Table 13
 typedef struct Produit{ 
 int id;     
 float prix;          
 char nom[30];         
-int quantite;         
+int quantite;  
+float prix;       
 struct Produit *suivant;
 } stProduit;
+typedef struct Client { 
+    int id; 
+    char nom[30]; 
+    float totalDepense; 
+    struct Panier panier;
+    struct Client *gauche; 
+    struct Client *droite; 
+} Client;
+typedef struct ClientFile { 
+    Client cl;
+    struct ClientFile *suivant; 
+} ClientFile;  
+typedef struct { 
+    ClientFile *debut; 
+    ClientFile *fin; 
+    int taille;
+} FileAttente;
+typedef struct ArticlePanier {
+    int idProduit;
+    int quantite;
+    struct ArticlePanier *suivant;
+} ArticlePanier;
+typedef struct Panier {
+    ArticlePanier *debut;
+    ArticlePanier *fin;
+    int nbArticles;
+    float total;
+} Panier;
 int hachage(int id) { 
     return id % Taille_Table; 
 } 
@@ -383,6 +413,370 @@ void Gestion_Produit(){
     break;
     }
    }while(choix!=0);
+}
+void initialiserPanier(Panier *panier) {
+    panier->debut = NULL;
+    panier->fin = NULL;
+    panier->nbArticles = 0;
+    panier->total = 0;
+}
+void ajouterAuPanier(Panier *panier, int idProduit, int quantite) {
+    ArticlePanier *nvn = (ArticlePanier*)malloc(sizeof(ArticlePanier));
+    nvn->idProduit = idProduit;
+    nvn->quantite = quantite;
+    nvn->suivant = NULL;
+    
+    if (panier->fin == NULL) {
+        panier->debut = nvn;
+        panier->fin = nvn;
+    } else {
+        panier->fin->suivant = nvn;
+        panier->fin = nvn;
+    }
+    
+    panier->nbArticles++;
+    printf("    Article %d %d ajouté au panier\n", idProduit, quantite);
+}
+int estPanierVide(Panier *panier) {
+    return panier->debut == NULL;
+}
+void viderPanier(Panier *panier) {
+    ArticlePanier *article = panier->debut;
+
+    while (article != NULL) {
+        ArticlePanier *tmp = article;
+        article = article->suivant;
+        free(tmp);
+    }
+
+    panier->debut = NULL;
+    panier->fin = NULL;
+    panier->nbArticles = 0;
+    panier->total = 0.0;
+}
+typedef struct stHach{
+    stProduit *Table[Taille_Table];
+}stHach;
+ClientFile* creerNoeudClientFile(Client cl) {
+    ClientFile* ptr = (ClientFile*)malloc(sizeof(ClientFile));
+    if(ptr == NULL) {
+        printf("Erreur d'allocation memoire\n");
+        exit(EXIT_FAILURE);
+    }
+    ptr->cl = cl;
+    ptr->suivant = NULL;
+    return ptr;
+}
+int estFileVide(FileAttente* fi) {
+    return fi->taille == 0;
+}
+void enfilerEnfinFile(FileAttente* fi, Client cl) {
+    ClientFile* nvn = creerNoeudClientFile(cl);
+    if (fi->fin == NULL) {
+        fi->debut = nvn;
+        fi->fin = nvn;
+    } else {
+        fi->fin->suivant = nvn;
+        fi->fin = nvn;
+    }
+    fi->taille++;
+}
+void defilerFile(FileAttente* fi) {
+    if (estFileVide(fi)) {
+        printf("La file est vide, impossible de defiler.\n");
+        return;
+    }
+    ClientFile* temp = fi->debut;
+    fi->debut = fi->debut->suivant;
+    if (fi->debut == NULL) {
+        fi->fin = NULL;
+    }
+    free(temp);
+    fi->taille--;
+}
+void afficherFile(FileAttente* fi){
+    if(estFileVide(fi)){
+        printf("La file est vide.\n");
+        return;
+    }
+    ClientFile* current = fi->debut;
+    while(current != NULL){
+        printf("ID Client: %d, Nom: %s, Total Depense: %.2f\n", current->cl.id, current->cl.nom, current->cl.totalDepense);
+        current = current->suivant;
+    }
+    return;
+}
+int verifierPanier(Panier *panier, stHach *tableProduits) {
+    if (panier->debut == NULL) {
+        printf("Le panier est vide.\n");
+        return 0;
+    }
+    
+    ArticlePanier *article = panier->debut;
+    int disponible = 1;  // 1 = tout disponible, 0 = probleme de stock
+    printf("Vérification panier...\n");
+    
+    while (article != NULL) {
+        // Recherche rapide par hachage
+        int index = hachage(article->idProduit);
+        stProduit *produit = tableProduits->Table[index];
+        
+        // Parcourir la liste chaînée à cet index
+        int trouve = 0;
+        while (produit != NULL) {
+            if (produit->id == article->idProduit) {
+                trouve = 1;
+                
+                if (produit->quantite < article->quantite) {
+                    printf("  [ERREUR] %s: stock %d < demande %d\n", 
+                           produit->nom, produit->quantite, article->quantite);
+                    disponible = 0;
+                }
+                break;
+            }
+            produit = produit->suivant;
+        }
+        
+        if (!trouve) {
+            printf("  [ERREUR] Produit ID %d introuvable\n", article->idProduit);
+            disponible = 0;
+        }
+        
+        article = article->suivant;
+    }
+    
+    return disponible;
+}
+float calculerTotalTVA(Panier *panier, stHach *table, float tauxTVA) {
+    float totalHT = 0.0;
+    ArticlePanier *article = panier->debut;
+    
+    printf("Articles :\n");
+    
+    while (article != NULL) {
+        int index = hachage(article->idProduit);
+        stProduit *produit = table->Table[index];
+        
+        while (produit != NULL && produit->id != article->idProduit) {
+            produit = produit->suivant;
+        }
+        
+        if (produit != NULL) {
+            float st = produit->prix * article->quantite;
+            totalHT += st;
+            printf("- %s x%d : %.2f€\n", produit->nom, article->quantite, st);
+        }
+        
+        article = article->suivant;
+    }
+    
+    float tva = totalHT * tauxTVA;
+    float totalTTC = totalHT + tva;
+    
+    panier->total = totalTTC;
+    return totalTTC;
+}
+void mettreAJourStock(Panier *panier, stHach *tableHachage) {
+    printf("\n IPDATE DU STOCK \n");
+    
+    ArticlePanier *article = panier->debut;
+    int produitsMisesAJour = 0;
+    int alertesStock = 0;
+    
+    while (article != NULL) {
+        int index = hachage(article->idProduit);
+        stProduit *produit = tableHachage->Table[index];
+        
+        // Recherche du produit dans la liste chaînée
+        while (produit != NULL && produit->id != article->idProduit) {
+            produit = produit->suivant;
+        }
+        
+        if (produit != NULL) {
+            // Sauvegarde de l'ancien stock
+            int ancienStock = produit->quantite;
+            
+            // Mise à jour du stock
+            produit->quantite -= article->quantite;
+            
+            // Vérification de validité
+            if (produit->quantite < 0) {
+                printf("ERREUR: Stock négatif pour %s! Réinitialisation à 0\n", 
+                       produit->nom);
+                produit->quantite = 0;
+            }
+            
+            printf("  %-20s : %3d → %3d (-%d)\n",
+                   produit->nom, ancienStock, 
+                   produit->quantite, article->quantite);
+            
+            produitsMisesAJour++;
+            
+            // Alertes stock faible
+            if (produit->quantite == 0) {
+                printf("    RUPTURE DE STOCK pour %s!\n", produit->nom);
+                alertesStock++;
+            } else if (produit->quantite <= 3) {
+                printf("    Stock critique pour %s (%d restant)\n", 
+                       produit->nom, produit->quantite);
+                alertesStock++;
+            }
+        } else {
+            printf("   Produit ID %d non trouvé dans le catalogue\n", 
+                   article->idProduit);
+        }
+        
+        article = article->suivant;
+    }
+    
+    printf("\nRésumé: %d produits mis à jour, %d alertes stock\n", 
+           produitsMisesAJour, alertesStock);
+}
+void genererTicket(Panier *panier, stHach *tableHachage, Client *client) {
+    printf("\n=== GÉNÉRATION DU TICKET ===\n");
+    
+    // Obtention de la date et heure actuelles
+    time_t maintenant;
+    time(&maintenant);
+    struct tm *infoDate = localtime(&maintenant);
+    
+    // Calcul du total
+    float totalHT = 0.0;
+    ArticlePanier *article = panier->debut;
+    
+    // Entête du ticket
+    printf("\n");
+    printf("╔══════════════════════════════════════════════╗\n");
+    printf("║            SUPERMARCHÉ XYZ                  ║\n");
+    printf("╠══════════════════════════════════════════════╣\n");
+    printf("║ Date: %02d/%02d/%04d  Heure: %02d:%02d          ║\n",
+           infoDate->tm_mday, infoDate->tm_mon + 1, 
+           infoDate->tm_year + 1900, infoDate->tm_hour, 
+           infoDate->tm_min);
+    printf("║ Caisse: 01              Ticket: %06d     ║\n", rand() % 1000000);
+    printf("╠══════════════════════════════════════════════╣\n");
+    printf("║ Client: %-34s ║\n", client->nom);
+    printf("║ ID Client: %-31d ║\n", client->id);
+    printf("╠══════════════════════════════════════════════╣\n");
+    printf("║                    ARTICLES                  ║\n");
+    printf("╠══════════════════════════════════════════════╣\n");
+    
+    int numeroArticle = 1;
+    
+    while (article != NULL) {
+        int index = hachage(article->idProduit);
+        stProduit *produit = tableHachage->Table[index];
+        
+        // Recherche du produit
+        while (produit != NULL && produit->id != article->idProduit) {
+            produit = produit->suivant;
+        }
+        
+        if (produit != NULL) {
+            float sousTotal = produit->prix * article->quantite;
+            totalHT += sousTotal;
+            
+            printf("║ %2d. %-18s x%2d @ %6.2f€ %9.2f€ ║\n",
+                   numeroArticle,
+                   produit->nom,
+                   article->quantite,
+                   produit->prix,
+                   sousTotal);
+        } else {
+            printf("║ %2d. PRODUIT INCONNU ID:%d x%2d          ║\n",
+                   numeroArticle,
+                   article->idProduit,
+                   article->quantite);
+        }
+        
+        article = article->suivant;
+        numeroArticle++;
+    }
+    
+    // Calcul des taxes
+    float tva = totalHT * 0.20;  // TVA à 20%
+    float totalTTC = totalHT + tva;
+    
+    // Pied du ticket
+    printf("╠══════════════════════════════════════════════╣\n");
+    printf("║ Sous-total                    %14.2f€ ║\n", totalHT);
+    printf("║ TVA (20%%)                     %14.2f€ ║\n", tva);
+    printf("╠══════════════════════════════════════════════╣\n");
+    printf("║ TOTAL À PAYER                %14.2f€ ║\n", totalTTC);
+    printf("╠══════════════════════════════════════════════╣\n");
+    
+    // Paiement
+    printf("║ Mode paiement: ESPÈCES                      ║\n");
+    printf("║ Montant reçu:  %21.2f€ ║\n", totalTTC);
+    printf("║ Monnaie rendue: %20.2f€ ║\n", 0.0);
+    printf("╠══════════════════════════════════════════════╣\n");
+    
+    // Informations client mises à jour
+    client->totalDepense += totalTTC;
+    printf("║ Dépense cumulée client:      %14.2f€ ║\n", client->totalDepense);
+    printf("║ Articles achetés: %22d   ║\n", panier->nbArticles);
+    printf("╚══════════════════════════════════════════════╝\n");
+    
+    // Message de remerciement
+    printf("\nchoukran de votre visite, %s!\n", client->nom);
+    printf("Nous espérons vous revoir bientôt.\n");
+    
+    // Sauvegarde du total dans le panier
+    panier->total = totalTTC;
+}
+int passageEnCaisse(Panier *panier, stHach *tableHachage, Client *client) {
+
+    printf("\n==================================================\n");
+    printf("PASSAGE EN CAISSE - Client: %s (ID: %d)\n", client->nom, client->id);
+    printf("==================================================\n");
+
+    // Panier vide
+    if (panier->debut == NULL) {
+        printf(" Panier vide. Transaction annulée.\n");
+        return 0;
+    }
+
+    // Calcul du total TTC (TVA 20%)
+    float totalTTC = 0.0;
+    ArticlePanier *article = panier->debut;
+
+    while (article != NULL) {
+        int index = hachage(article->idProduit);
+        stProduit *prod = tableHachage->Table[index];
+
+        // Recherche du produit dans la liste chaînée
+        while (prod && prod->id != article->idProduit)
+            prod = prod->suivant;
+
+        if (prod)
+            totalTTC += prod->prix * article->quantite * 1.20;
+
+        article = article->suivant;
+    }
+
+    printf("Total estimé : %.2f €\n", totalTTC);
+
+    // Confirmation
+    printf("Confirmez-vous cet achat ? (O/N) : ");
+    char c;
+    scanf(" %c", &c);
+
+    if (c != 'O' && c != 'o') {
+        printf(" Transaction annulée.\n");
+        return 0;
+    }
+
+    // Mise à jour du stock
+    mettreAJourStock(panier, tableHachage);
+
+    // Génération ticket
+    genererTicket(panier, tableHachage, client);
+
+    // Nettoyage panier
+    viderPanier(panier);
+
+    printf("\n Transaction terminée avec succès !\n");
+    return 1;
 }
 int main(){
     Gestion_Produit();
