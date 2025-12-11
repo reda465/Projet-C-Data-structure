@@ -1,3 +1,6 @@
+// TODO
+// Mise a jour de l'arbre binaire apres que le client finit l'achat d'un produit !!
+// Parcours Infixe plus organisé
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
@@ -26,6 +29,25 @@ typedef struct ClientArbre{
 ClientArbre* InitArbre(void){
     ClientArbre* Arbre = (ClientArbre*) malloc(sizeof(ClientArbre));
 }
+void Infixe(Client* noeud) //pour ordre alphabétique
+{
+    Infixe(noeud->gauche);
+    printf("ID : %d | Nom du client : %s | Total depensé : %.2f", noeud->id, noeud->nom, noeud->totalDepense);
+    Infixe(noeud->droite);
+}
+Client creeNoeud(Client client, Client* droite, Client* gauche)
+{
+    Client* cli = malloc(sizeof(Client));
+    cli->id = client.id;
+    strcpy(cli->nom,client.nom);
+    cli->totalDepense = client.totalDepense;
+    cli->droite = droite;
+    cli->gauche = gauche;
+}
+void ajouterClient(Client* noeud,Client client)
+{
+
+}
 int forcerLireEntier(void)
 {
     int choix;
@@ -51,7 +73,7 @@ int menuClients(void){ //inplement a better asthetic later
     printf("==========ESPACE CLIENTS====================="
         "1. Inserer un client \n"
         "2. Rechercher un client \n" 
-        "3. Parcourir les client \n" //add NB explaining the results to the user
+        "3. Afficher les client en ordre alphabétique \n" 
         "4. Supprimer un client \n"
         "5. Sauvegarder dans \"clients.txt\"\n " 
         "6. Charger depuis \"clients.txt\"\n ");
