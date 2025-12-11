@@ -149,10 +149,9 @@
     void sauvegarderArbre(Client* client)
     {
         FILE* file = fopen("clients.txt","a+");
-        fprintf(file,"%d|%s|%d\n",client->id,client->nom,client->totalDepense);
+        fprintf(file,"%d|%s|%f\n",client->id,client->nom,client->totalDepense);
         fclose(file);
     }
-
     void sauvegarderRecursive(Client* client){
     if(client!=NULL){
         sauvegarderRecursive(client->droite);
@@ -160,6 +159,22 @@
         sauvegarderRecursive(client->gauche);
     }
 }
+
+    ClientArbre* chargerArbre(ClientArbre* Arb,Client* noeud)
+    {
+        FILE* file = fopen("clients.txt","r");
+        Client buffer;
+        if(Arb == NULL)
+        {
+            Arb = InitArbre();
+        }
+        while (fscanf(file,"%d|%s|%f\n",&buffer.id,buffer.nom,&buffer.totalDepense) == 3){
+        Arb->racine = ajouterClient(Arb->racine,buffer);
+    }
+        fclose(file);
+        return Arb;
+    }
+
     //affichage menu des options
     int menuClients(void){ //inplement a better asthetic later 
         printf("==========ESPACE CLIENTS====================="
