@@ -9,6 +9,14 @@ char nom[30];
 int quantite;         
 struct Produit *suivant;
 } stProduit;
+
+typedef struct Client{
+    int id;
+    char nom[30];
+    float totalDepense;
+    struct Client* gauche;
+    struct Client* droite;
+}Client;
 int hachage(int id) { 
     return id % Taille_Table; 
 } 
