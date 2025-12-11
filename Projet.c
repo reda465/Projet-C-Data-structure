@@ -10,6 +10,7 @@ int quantite;
 struct Produit *suivant;
 } stProduit;
 
+// définition de type client qui sera un element de l'arbre.
 typedef struct Client{
     int id;
     char nom[30];
@@ -17,6 +18,46 @@ typedef struct Client{
     struct Client* gauche;
     struct Client* droite;
 }Client;
+// définition de type arbre qui sera l'arbre définit par sa racine.
+typedef struct ClientArbre{
+    Client* racine;
+}ClientArbre;
+// Initialisation et reservation de l'éspace mémoire.
+ClientArbre* InitArbre(void){
+    ClientArbre* Arbre = (ClientArbre*) malloc(sizeof(ClientArbre));
+}
+int forcerLireEntier(void)
+{
+    int choix;
+    while(1)
+    {
+    printf("Effectuer un choix : ");
+
+    if(scanf("%d",&choix) == 1)
+    {
+        if( choix>6 || choix<0 ) 
+        {printf("choix Invalide\n");
+        continue ;}
+        else break;
+    } 
+    else {while(getchar() != '\n');
+    printf("choix Invalide\n");}
+    }
+    return choix; 
+}
+
+//affichage menu des options
+int menuClients(void){ //inplement a better asthetic later 
+    printf("==========ESPACE CLIENTS====================="
+        "1. Inserer un client \n"
+        "2. Rechercher un client \n" 
+        "3. Parcourir les client \n" //add NB explaining the results to the user
+        "4. Supprimer un client \n"
+        "5. Sauvegarder dans \"clients.txt\"\n " 
+        "6. Charger depuis \"clients.txt\"\n ");
+        int choix = forcerLireEntier();
+}
+
 int hachage(int id) { 
     return id % Taille_Table; 
 } 
