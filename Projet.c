@@ -12,7 +12,6 @@
     int quantite;         
     struct Produit *suivant;
     } stProduit;
-
     // définition de type client qui sera un element de l'arbre.
     typedef struct Client{
         int id;
