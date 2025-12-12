@@ -58,7 +58,7 @@
     {
         if(noeud != NULL){
         Infixe(noeud->gauche);
-        printf("Informations sur le client: %d\nNom du client : %s\t Total depensé : %.2f\n", noeud->id, noeud->nom, noeud->totalDepense);
+        printf("\nInformations sur le client %d:\n\nNom du client : %s\t Total depensé : %.2f\n\n", noeud->id, noeud->nom, noeud->totalDepense);
         Infixe(noeud->droite);
     }
     return;
@@ -183,7 +183,7 @@
         {
             Arb = InitArbre(Arb);
         }
-        while (fscanf(file,"%d|%s|%f\n",&buffer.id,buffer.nom,&buffer.totalDepense) == 3){
+        while (fscanf(file,"%d|%[^|]|%f\n",&buffer.id,buffer.nom,&buffer.totalDepense) == 3){
         Arb->racine = ajouterClient(Arb->racine,buffer);
     }
         fclose(file);
@@ -211,7 +211,7 @@
         TranslationNull(c.nom);
         Client* buffer = rechercherClient(c,ar->racine);
         if(buffer == NULL) printf("Client non trouvé \n");
-        else printf("Affichage des informations du client %d :\n Nom : %s\t Total Depensé : %.2f \n",buffer->id,buffer->nom,buffer->totalDepense);
+        else printf("\n\nAffichage des informations du client %d :\n Nom : %s\t Total Depensé : %.2f \n\n",buffer->id,buffer->nom,buffer->totalDepense);
         break;
         case 3:
         Infixe(ar->racine);
@@ -248,7 +248,7 @@
         ClientArbre* ar;
         ar = InitArbre(ar);
         start:
-        printf("==========ESPACE CLIENTS=====================\n"
+        printf("\n=================ESPACE CLIENTS=====================\n"
             "1. Inserer un client \n"
             "2. Rechercher un client \n" 
             "3. Afficher les client en ordre alphabétique \n" 
@@ -638,7 +638,9 @@
         }
     }while(choix!=0);
     }
+    #include<windows.h>
     int main(){
+        SetConsoleOutputCP(65001); //pour windows lecture des accents en terminal VsCode
         printf("Bienvenu dans l'éspace du supermarché\n"
         "1. Espace Clients\n"
          "2. Espace Produits\n");
