@@ -20,11 +20,26 @@
         struct Client* gauche;
         struct Client* droite;
     }Client;
+    void Menu(); //should me updated to the real menu (not implemented yet)
     // définition de type arbre qui sera l'arbre définit par sa racine.
     typedef struct ClientArbre{
         Client* racine;
     }ClientArbre;
     //checkAllocation()
+    char* TranslationNull(char* string)
+    {
+        if(string == NULL) return NULL;
+        else 
+        {
+            int length = strlen(string);
+            for(int i =0; i<length;i++)
+            {
+                if (string[i] == '\n') {
+                string[i] = '\0'; break;}
+            }
+        }
+        return string;
+    }
     void checkAllocationArbre(ClientArbre* Arbre)
     {
         if(Arbre == NULL)
@@ -33,8 +48,8 @@
         }
     }
     // Initialisation et reservation de l'éspace mémoire.
-    ClientArbre* InitArbre(void){
-        ClientArbre* Arbre = (ClientArbre*) malloc(sizeof(ClientArbre));
+    ClientArbre* InitArbre(ClientArbre* Arbre){
+        Arbre = (ClientArbre*) malloc(sizeof(ClientArbre));
         checkAllocationArbre(Arbre);
         Arbre->racine = NULL;
         return Arbre;
@@ -43,7 +58,7 @@
     {
         if(noeud != NULL){
         Infixe(noeud->gauche);
-        printf("ID : %d | Nom du client : %s | Total depensé : %.2f", noeud->id, noeud->nom, noeud->totalDepense);
+        printf("Informations sur le client: %d\nNom du client : %s\t Total depensé : %.2f\n", noeud->id, noeud->nom, noeud->totalDepense);
         Infixe(noeud->droite);
     }
     return;
@@ -101,8 +116,9 @@
         else //trouvee debut de decalage
         {
     //cas d'un arabre sans enfants
-        if (noeud->droite == NULL && noeud->gauche == NULL)
+        if (noeud->droite == NULL && noeud->gauche == NULL){
         free(noeud);
+        return NULL;}
         else if(noeud->droite == NULL){ // pas de fils droit
         Client* tmp = noeud->gauche;
         free(noeud);
@@ -134,7 +150,7 @@
 
         if(scanf("%d",&choix) == 1)
         {
-            if( choix>6 || choix<0 ) 
+            if( choix>7 || choix<0 ) 
             {printf("choix Invalide\n");
             continue ;}
             else break;
@@ -159,13 +175,13 @@
     }
 }
 
-    ClientArbre* chargerArbre(ClientArbre* Arb,Client* noeud)
+    ClientArbre* chargerArbre(ClientArbre* Arb)
     {
         FILE* file = fopen("clients.txt","r");
         Client buffer;
         if(Arb == NULL)
         {
-            Arb = InitArbre();
+            Arb = InitArbre(Arb);
         }
         while (fscanf(file,"%d|%s|%f\n",&buffer.id,buffer.nom,&buffer.totalDepense) == 3){
         Arb->racine = ajouterClient(Arb->racine,buffer);
@@ -173,26 +189,86 @@
         fclose(file);
         return Arb;
     }
+    void switchf(int choix,ClientArbre* ar)
+    {
+        switch (choix)
+        {
+        case 1:
+            printf("Insertion des clients : \n");
+            Client c;
+            printf("Entrer l'id :");
+            scanf("%d",&c.id);
+            while (getchar() != '\n');
+            printf("Entrer le nom :");
+            fgets(c.nom,sizeof(c.nom),stdin);
+            TranslationNull(c.nom);
+            c.totalDepense = 0;
+            ar->racine = ajouterClient(ar->racine,c);
+            break;
+        case 2:
+        printf("Entrer le nom du client que vous chercher : ");
+        fgets(c.nom,sizeof(c.nom),stdin);
+        TranslationNull(c.nom);
+        Client* buffer = rechercherClient(c,ar->racine);
+        if(buffer == NULL) printf("Client non trouvé \n");
+        else printf("Affichage des informations du client %d :\n Nom : %s\t Total Depensé : %.2f \n",buffer->id,buffer->nom,buffer->totalDepense);
+        break;
+        case 3:
+        Infixe(ar->racine);
+        break;
+        case 4:
+        printf("Entrer le nom du client que vous voulez supprimer : ");
+        fgets(c.nom,sizeof(c.nom),stdin);
+        TranslationNull(c.nom);
+        buffer = rechercherClient(c,ar->racine);
+        if(buffer == NULL)
+        {
+            printf("Client non trouvé \n");
+        }
+        else{
+        ar->racine = supprimerClient(ar->racine,c);
+        printf("Client supprimé avec succés\n");}
 
+        break;
+        case 5:
+        sauvegarderRecursive(ar->racine);
+        break;
+        case 6:
+        ar = chargerArbre(ar);
+        break;
+        case 7:
+        Menu();
+        break;
+        default:
+            break;
+        }
+    }
     //affichage menu des options
-    int menuClients(void){ //inplement a better asthetic later 
-        printf("==========ESPACE CLIENTS====================="
+    void menuClients(void){ //inplement a better asthetic later 
+        ClientArbre* ar;
+        ar = InitArbre(ar);
+        start:
+        printf("==========ESPACE CLIENTS=====================\n"
             "1. Inserer un client \n"
             "2. Rechercher un client \n" 
             "3. Afficher les client en ordre alphabétique \n" 
             "4. Supprimer un client \n"
-            "5. Sauvegarder dans \"clients.txt\"\n " 
-            "6. Charger depuis \"clients.txt\"\n ");
+            "5. Sauvegarder dans \"clients.txt\"\n" 
+            "6. Charger depuis \"clients.txt\"\n"
+            "7. Retour Au Menu Principale\n");
             int choix = forcerLireEntier();
-            return choix;
+            while(getchar() != '\n');
+            switchf(choix,ar);
+            goto start;
     }
-
     int hachage(int id) { 
         return id % Taille_Table; 
     } 
     typedef struct stHach{
         stProduit *Table[Taille_Table];
     }stHach;
+
+
     void Menu(){
         printf("******************Chere gerant(e) :-)****************\n");
         printf("1)Ajouter Produit .\n");
@@ -563,5 +639,23 @@
     }while(choix!=0);
     }
     int main(){
-        Gestion_Produit();
+        printf("Bienvenu dans l'éspace du supermarché\n"
+        "1. Espace Clients\n"
+         "2. Espace Produits\n");
+        printf("Choisir à quel espace vous voulez acceder :");
+        int choice;
+        scanf("%d",&choice);
+        switch (choice)
+        {
+        case 1:
+            menuClients();
+            break;
+        case 2:
+             Gestion_Produit();
+             break;
+        default:
+            break;
+        }
+        
+        
     }
