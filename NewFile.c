@@ -21,7 +21,7 @@ void Menu(){
     printf("2)Modifier Produit .\n");
     printf("3)Supprimer Produit .\n");
     printf("4)Rechercher un produit .\n");
-    printf("5)Afficher la liste des produits .\n");
+    printf("5)Afficher la liste des produit .\n");
     printf("6)Sauvegarder la liste des produits.\n");
     printf("**************************************************\n");
 }
@@ -58,7 +58,7 @@ void Lire_Info(stProduit *Produit){
     scanf(" %d", &Produit->quantite);
 }
 void Print_Info(stProduit *ptr){
-    printf("Id : %d Nom : %s , Prix : %.2f, quantite : %d \n",ptr->id,ptr->nom,ptr->prix,ptr->quantite);
+    printf("Id : %d \t\tNom : %s , \t\tPrix : \t%.2f, \t\tQuantite : \t%d \n",ptr->id,ptr->nom,ptr->prix,ptr->quantite);
 }
 stProduit *Creer_Produit(){
     stProduit *Produit=(stProduit *)malloc(sizeof(stProduit));
@@ -350,11 +350,13 @@ void Gestion_Produit(){
     Ajouter_Produit(HashTable.Table,indexe,Produit);
     break;
     case 2:
+    Afficher_Trie(HashTable.Table);
     id=Lire_Id("Entrez l'ID du produit que vous voulez modifier \n");
     indexe=hachage(id);
     modifier(HashTable.Table,indexe,id);
     break;
     case 3:
+    Afficher_Trie(HashTable.Table);
     id=Lire_Id("Entrez l'ID du produit que vous voulez supprimer \n");
     indexe=hachage(id);
     supprimer(HashTable.Table,indexe,id);
