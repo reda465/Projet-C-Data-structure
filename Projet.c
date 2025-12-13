@@ -4,6 +4,7 @@
     #include<stdlib.h>
     #include<stdio.h>
     #include<string.h>
+    #include<time.h>
     #define Taille_Table 13
     typedef struct Produit{ 
     int id;     
@@ -638,26 +639,478 @@
         }
     }while(choix!=0);
     }
-    #include<windows.h>
-    int main(){
-        SetConsoleOutputCP(65001); //pour windows lecture des accents en terminal VsCode
-        printf("Bienvenu dans l'éspace du supermarché\n"
-        "1. Espace Clients\n"
-         "2. Espace Produits\n");
-        printf("Choisir à quel espace vous voulez acceder :");
-        int choice;
-        scanf("%d",&choice);
-        switch (choice)
-        {
+    //                               partie passage_en_caisse                        //
+    typedef struct ClientFile {
+    int idClient;
+    struct ClientFile *suivant;
+} ClientFile;
+
+typedef struct {
+    ClientFile *debut;
+    ClientFile *fin;
+} FileAttente;
+//hado d sousi wlkn zedthom lo
+typedef struct Transaction {
+    int id;
+    int idClient;
+    char nomClient[30];
+    float total;
+    char dateHeure[20];
+    struct Transaction *suivant;
+} Transaction;
+
+typedef struct CaisseSystem {
+    ClientArbre *arbreClients;
+    FileAttente *fileAttente;
+    stHach *stockProduits;
+    Transaction *historique;
+    int dernierIDTransaction;
+} CaisseSystem;
+// Fonction pour initialiser une file d'attente
+FileAttente* initFileAttente() {
+    FileAttente *file = (FileAttente*)malloc(sizeof(FileAttente));
+    file->debut = NULL;
+    file->fin = NULL;
+    return file;
+}
+
+// Fonction pour ajouter un client à la file d'attente
+void ajouterClientFile(FileAttente *file, int idClient) {
+    ClientFile *nouveau = (ClientFile*)malloc(sizeof(ClientFile));
+    nouveau->idClient = idClient;
+    nouveau->suivant = NULL;
+    
+    if (file->fin == NULL) {  // File vide
+        file->debut = file->fin = nouveau;
+    } else {
+        file->fin->suivant = nouveau;
+        file->fin = nouveau;
+    }
+    printf("Client ID %d ajouté à la file d'attente\n", idClient);
+}
+void defilerClientFile(FileAttente *file) {
+    if (file->debut == NULL) {
+        printf("La file d'attente est vide.\n");
+        return;
+    }
+    
+    ClientFile *temp = file->debut;
+    file->debut = file->debut->suivant;
+    
+    if (file->debut == NULL) {
+        file->fin = NULL;  // La file est maintenant vide
+    }
+    
+    free(temp);
+}
+// 6. Fonction pour afficher la file d'attente
+void afficherFileAttente(FileAttente *file) {
+    if (file->debut == NULL) {
+        printf("File d'attente vide.\n");
+        return;
+    }
+    printf("\n=== File d'attente ===\n");
+    ClientFile *current = file->debut;
+    int position = 1;
+    
+    while (current != NULL) {
+        printf("%d. Client ID: %d\n", position++, current->idClient);
+        current = current->suivant;
+    }
+    printf("=====================\n");
+}
+
+// Fonction pour chercher un client par ID dans l'arbre (récursif)
+Client* chercherClientParID(Client* noeud, int id) {
+    if (noeud == NULL) return NULL;
+    
+    if (noeud->id == id) return noeud;
+    
+    Client* gauche = chercherClientParID(noeud->gauche, id);
+    if (gauche != NULL) return gauche;
+    
+    return chercherClientParID(noeud->droite, id);
+}
+// Ajouter panier manuellement
+void ajouterPanierManuellement(CaisseSystem *caisse) {
+    int idClient;
+    char nomClient[30];
+    float total;
+    printf("\n=== Ajout manuel d'une transaction ===\n");
+    printf("ID du client: ");
+    scanf("%d", &idClient);
+    while(getchar() != '\n');
+    
+    printf("Nom du client: ");
+    fgets(nomClient, sizeof(nomClient), stdin);
+    nomClient[strcspn(nomClient, "\n")] = 0;
+    
+    printf("Total de la transaction: ");
+    scanf("%f", &total);
+    
+    // Vérifier si le client existe
+    Client *client = chercherClientParID(caisse->arbreClients->racine, idClient);
+    if (client != NULL) {
+        client->totalDepense += total;
+        printf("Client %s mis a jour: +%.2f DH\n", client->nom, total);
+    } 
+}
+float calculerTotalPanier(stHach *stock, int *produitsAchetes, int *quantites, int nbProduits) {
+    float total = 0.0;
+    for (int i = 0; i < nbProduits; i++) {
+        int idProduit = produitsAchetes[i];
+        int quantite = quantites[i];
+        int index = hachage(idProduit);
+        // Recherche du produit
+        stProduit *produit = stock->Table[index];
+        while (produit != NULL && produit->id != idProduit) {
+            produit = produit->suivant;
+        }
+        if (produit != NULL) {
+            total += produit->prix * quantite;
+        }
+    }
+    return total;
+}
+int verifierStock(stHach *stock, int idProduit, int quantiteDemandee) {
+    int index = hachage(idProduit);
+    stProduit *produit = stock->Table[index];
+    // Recherche du produit dans la liste chaînée
+    while (produit != NULL && produit->id != idProduit) {
+        produit = produit->suivant;
+    }
+    // Cas 1: Produit non trouvé
+    if (produit == NULL) {
+        printf(" Produit ID %d non trouvé dans le stock.\n", idProduit);
+        return -1; // Code d'erreur: produit non existant
+    }
+    // Cas 2: Stock insuffisant
+    if (produit->quantite < quantiteDemandee) {
+        printf("  Stock insuffisant pour '%s' (ID: %d)\n", produit->nom, idProduit);
+        printf("   Quantité demandée: %d | Disponible: %d\n", quantiteDemandee, produit->quantite);
+        return 0; // Code d'erreur: stock insuffisant
+    }
+    // Cas 3: Stock suffisant
+    printf(" Stock disponible pour '%s'\n", produit->nom);
+    printf("   Prix unitaire: %.2f DH | Quantité disponible: %d\n", produit->prix, produit->quantite);
+    
+    // Calcul et affichage du sous-total
+    float sousTotal = produit->prix * quantiteDemandee;
+    printf("   Sous-total pour %d unité(s): %.2f DH\n", quantiteDemandee, sousTotal);
+    return 1; // Code de succès: stock OK
+}
+// Fonction unique pour générer et sauvegarder le ticket
+void genererEtSauvegarderTicket(Client *client, int *produitsAchetes, int *quantites, 
+                                stHach *stock, int nbProduits, float total) {
+    // 1. Création nom fichier
+    char nomFichier[50];
+    sprintf(nomFichier, "ticket_%d.txt", client->id);
+    // 2. Ouverture fichier
+    FILE *fichier = fopen(nomFichier, "w");
+    if (fichier == NULL) {
+        printf(" Erreur: Impossible de créer le fichier ticket.\n");
+        return;
+    }
+    // 3. Préparation date/heure
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    char dateHeure[30];
+    strftime(dateHeure, 30, "%Y-%m-%d %H:%M:%S", tm_info);
+    // 4. ÉCRITURE DANS LE FICHIER (format optimisé)
+    fprintf(fichier, "==========================================\n");
+    fprintf(fichier, "           SUPERMARCHé XYZ               \n");
+    fprintf(fichier, "           TICKET DE CAISSE              \n");
+    fprintf(fichier, "==========================================\n");
+    fprintf(fichier, "Client    : %s\n", client->nom);
+    fprintf(fichier, "ID Client : %d\n", client->id);
+    fprintf(fichier, "Date/Heure: %s\n", dateHeure);
+    fprintf(fichier, "------------------------------------------\n");
+    fprintf(fichier, "ARTICLES ACHETES:\n");
+    fprintf(fichier, "------------------------------------------\n");
+    // 5. Liste des articles (optimisé)
+    for (int i = 0; i < nbProduits; i++) {
+        int idProduit = produitsAchetes[i];
+        int quantite = quantites[i];
+        int index = hachage(idProduit);
+        // Recherche produit
+        stProduit *produit = stock->Table[index];
+        while (produit != NULL && produit->id != idProduit) {
+            produit = produit->suivant;
+        }
+        if (produit != NULL) {
+            float prixUnitaire = produit->prix;
+            float sousTotal = prixUnitaire * quantite;
+            
+            fprintf(fichier, "• %-20s x%-3d @ %.2f DH = %6.2f DH\n",
+                    produit->nom, quantite, prixUnitaire, sousTotal);
+        }
+    }
+    // 6. Total et informations
+    fprintf(fichier, "------------------------------------------\n");
+    fprintf(fichier, "TOTAL A PAYER  : %26.2f DH\n", total);
+    fprintf(fichier, "------------------------------------------\n");
+    fprintf(fichier, "Nombre d'articles : %d\n", nbProduits);
+    fprintf(fichier, "Ticket ID         : %d\n", client->id);
+    fprintf(fichier, "Fichier           : %s\n", nomFichier);
+    fprintf(fichier, "==========================================\n");
+    fprintf(fichier, "        MERCI POUR VOTRE ACHAT !         \n");
+    fprintf(fichier, "==========================================\n");
+    // 7. Fermeture fichier
+    fclose(fichier);
+    // 8. AFFICHAGE À L'ÉCRAN simple
+    printf("\n");
+    printf("==========================================\n");
+    printf("           TICKET DE CAISSE              \n");
+    printf("==========================================\n");
+    printf("Client    : %s\n", client->nom);
+    printf("Date/Heure: %s\n", dateHeure);
+    printf("------------------------------------------\n");
+    // Affichage articles (résumé)
+    for (int i = 0; i < nbProduits; i++) {
+        int idProduit = produitsAchetes[i];
+        int quantite = quantites[i];
+        int index = hachage(idProduit);
+        
+        stProduit *produit = stock->Table[index];
+        while (produit != NULL && produit->id != idProduit) {
+            produit = produit->suivant;
+        }
+        
+        if (produit != NULL) {
+            printf("• %s x%d = %.2f DH\n", 
+                   produit->nom, quantite, produit->prix * quantite);
+        }
+    }
+    printf("------------------------------------------\n");
+    printf("TOTAL     : %.2f DH\n", total);
+    printf("==========================================\n");
+    printf(" Ticket sauvegardé dans: %s\n", nomFichier);
+}
+// Fonction pour servir le prochain client
+void servirProchainClient(CaisseSystem *caisse) {
+    // ÉTAPE 1: Vérifier si la file n'est pas vide
+    if (caisse->fileAttente == NULL || caisse->fileAttente->debut == NULL) {
+        printf("\n Aucun client en attente!\n");
+        afficherFileAttente(caisse->fileAttente);
+        return;
+    }
+    // ÉTAPE 2: Récupérer le premier client de la file (FIFO)
+    ClientFile *clientEnTete = caisse->fileAttente->debut;
+    int idClient = clientEnTete->idClient;
+    printf("\n═══════════════════════════════════════════════════════════\n");
+    printf("               SERVICE DU CLIENT ID: %d                   \n", idClient);
+    printf("═══════════════════════════════════════════════════════════\n");
+    // ÉTAPE 3: Chercher le client dans l'arbre
+    Client *client = chercherClientParID(caisse->arbreClients->racine, idClient);
+    if (client == NULL) {
+        printf(" ERREUR: Client ID %d non trouvé dans la base de données!\n", idClient);
+        // Retirer quand même de la file
+        defilerClientFile(caisse->fileAttente);
+        return;
+    }
+    // ÉTAPE 4: Afficher les informations du client
+    printf(" CLIENT: %s (ID: %d)\n", client->nom, client->id);
+    printf(" Total déjà dépensé: %.2f DH\n", client->totalDepense);
+    printf("-----------------------------------------------------------\n");
+    // ÉTAPE 5: Saisie du panier
+    int produitsAchetes[100];
+    int quantites[100];
+    int nbProduits = 0;
+    float totalAchat = 0.0;
+    printf("\n╔═══════════════════════════════════════╗\n");
+    printf("║        SAISIE DU PANIER               ║\n");
+    printf("╚═══════════════════════════════════════╝\n");
+    printf("Entrez les produits (ID=-1 pour terminer):\n\n");
+    while (nbProduits < 100) {
+        int idProduit, quantite;
+        printf("→ ID Produit (-1 pour terminer): ");
+        scanf("%d", &idProduit);
+        if (idProduit == -1) {
+            break;
+        }
+        printf("→ Quantité désirée: ");
+        scanf("%d", &quantite);
+        // Vérifier le stock
+        int resultatStock = verifierStock(caisse->stockProduits, idProduit, quantite);
+        if (resultatStock == 1) { // Stock disponible
+            // Ajouter au panier
+            produitsAchetes[nbProduits] = idProduit;
+            quantites[nbProduits] = quantite;
+            nbProduits++;
+            // Mettre à jour le stock immédiatement
+            int index = hachage(idProduit);
+            stProduit *produit = caisse->stockProduits->Table[index];
+            while (produit != NULL && produit->id != idProduit) {
+                produit = produit->suivant;
+            }
+            if (produit != NULL) {
+                produit->quantite -= quantite;
+                float sousTotal = produit->prix * quantite;
+                totalAchat += sousTotal;
+                printf("Ajouté: %s ×%d = %.2f DH\n", 
+                       produit->nom, quantite, sousTotal);
+            }
+        } else if (resultatStock == 0) {
+            printf(" Article non ajouté au panier (stock insuffisant)\n");
+        } else {
+            printf(" Article non ajouté au panier (produit non trouvé)\n");
+        }
+        printf(" Sous-total courant: %.2f DH | Articles: %d\n\n", totalAchat, nbProduits);
+    }
+    // ÉTAPE 6: Vérifier si le panier n'est pas vide
+    if (nbProduits == 0) {
+        printf("\n Panier vide - Transaction annulée\n");
+        return;
+    }
+    // ÉTAPE 7: Calculer le total final (vérification)
+    float totalVerifie = calculerTotalPanier(caisse->stockProduits, produitsAchetes, quantites, nbProduits);
+    // ÉTAPE 8: Confirmation
+    printf("\n═══════════════════════════════════════════════════════════\n");
+    printf("RÉCAPITULATIF FINAL:\n");
+    printf("• Client: %s\n", client->nom);
+    printf("• Nombre d'articles: %d\n", nbProduits);
+    printf("• Montant total: %.2f DH\n", totalVerifie);
+    printf("═══════════════════════════════════════════════════════════\n");
+    printf("\nConfirmer la transaction? (o/n): ");
+    char confirmation;
+    scanf(" %c", &confirmation);
+    if (confirmation != 'o' && confirmation != 'O') {
+        printf("\n Transaction annulée\n");
+        // Rembourser le stock (annuler les modifications)
+        for (int i = 0; i < nbProduits; i++) {
+            int idProduit = produitsAchetes[i];
+            int quantite = quantites[i];
+            int index = hachage(idProduit);
+            stProduit *produit = caisse->stockProduits->Table[index];
+            while (produit != NULL && produit->id != idProduit) {
+                produit = produit->suivant;
+            }
+            if (produit != NULL) {
+                produit->quantite += quantite;
+            }
+        }
+        
+        return;
+    }
+    // ÉTAPE 9: Mettre à jour le client
+    float ancienTotal = client->totalDepense;
+    client->totalDepense += totalVerifie;
+    
+    printf("\n Mise à jour des informations client:\n");
+    printf("  %s: %.2f DH → %.2f DH (+%.2f DH)\n", 
+           client->nom, ancienTotal, client->totalDepense, totalVerifie);
+    
+    // ÉTAPE 10: Générer le ticket
+    genererEtSauvegarderTicket(client, produitsAchetes, quantites, caisse->stockProduits, nbProduits, totalVerifie);
+    
+    // ÉTAPE 11: Retirer le client de la file d'attente
+    caisse->fileAttente->debut = clientEnTete->suivant;
+    if (caisse->fileAttente->debut == NULL) {
+        caisse->fileAttente->fin = NULL;
+    }
+    free(clientEnTete);
+    
+    // ÉTAPE 12: Sauvegarder les modifications
+    printf("\n Sauvegarde des données...\n");
+    sauvegarderRecursive(caisse->arbreClients->racine);
+    Sauvegarder(caisse->stockProduits->Table);
+    printf(" Données sauvegardées avec succès!\n");
+    
+    // ÉTAPE 13: Message final
+    printf("\n═══════════════════════════════════════════════════════════\n");
+    printf(" TRANSACTION TERMINÉE AVEC SUCCÈS!\n");
+    printf("═══════════════════════════════════════════════════════════\n");
+    printf("Client %s servi et retiré de la file d'attente.\n", client->nom);
+    printf("Montant total: %.2f DH\n", totalVerifie);
+    printf("═══════════════════════════════════════════════════════════\n");
+}
+void menuCaisse() {
+    int choix;
+    
+    // INITIALISATION 
+    CaisseSystem caisse;  
+    
+
+    caisse.arbreClients = InitArbre(NULL);
+    caisse.arbreClients = chargerArbre(caisse.arbreClients);
+    
+    caisse.stockProduits = (stHach*)malloc(sizeof(stHach));
+    initialiser_Table(caisse.stockProduits->Table);
+    charger(caisse.stockProduits->Table);  // Pas de &
+    
+    caisse.fileAttente = initFileAttente();
+    caisse.historique = NULL;
+    caisse.dernierIDTransaction = 1;
+        // BOUCLE DU MENU
+    
+    do {
+        printf("\n=== MENU CAISSE ===\n");
+        printf("1. Ajouter un client a la file d'attente\n");
+        printf("2. Servir le prochain client\n");
+        printf("3. Afficher la file d'attente\n");
+        printf("4. Ajouter une transaction manuellement\n");
+        printf("0. Retour au menu principal\n");
+        printf("Choix: ");
+        scanf("%d", &choix);
+        
+        while(getchar() != '\n');  // Nettoyer buffer
+        
+        switch (choix) {
+            case 1: {
+                int idClient;
+                printf("Entrez l'ID du client a ajouter: ");
+                scanf("%d", &idClient);
+                ajouterClientFile(caisse.fileAttente, idClient);  // . car variable
+                break;
+            }
+            case 2:
+                servirProchainClient(&caisse);  // & pour passer l'adresse
+                break;
+            case 3:
+                afficherFileAttente(caisse.fileAttente);  // . car variable
+                break;
+            case 4:
+                ajouterPanierManuellement(&caisse);  // & pour passer l'adresse
+                break;
+            case 0:
+                printf("Retour au menu principal...\n");
+                break;
+            default:
+                printf("Choix invalide.\n");
+        }
+    } while (choix != 0);
+}
+
+//                               partie main                        //
+#include <windows.h>
+
+int main() {
+    SetConsoleOutputCP(65001);
+    
+    printf("Bienvenu dans l'espace du supermarche\n"
+           "1. Espace Clients\n"
+           "2. Espace Produits\n"
+           "3. Passage en caisse\n"
+           "Choisir a quel espace vous voulez acceder: ");
+    
+    int choice;
+    scanf("%d", &choice);
+    
+    switch (choice) {
         case 1:
             menuClients();
             break;
         case 2:
-             Gestion_Produit();
-             break;
-        default:
+            Gestion_Produit();
             break;
-        }
-        
-        
+        case 3:
+            menuCaisse();  
+            break;
+        default:
+            printf("Choix invalide!\n");
+            break;
     }
+    
+    return 0;
+}
+    
