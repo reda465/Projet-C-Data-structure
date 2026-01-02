@@ -909,7 +909,7 @@ void defilerClientFile(FileAttente *file) {
 }
 // 6. Fonction pour afficher la file d'attente
 Client* chercherClientParID(Client* noeud, int id) ;
-void afficherFileAttente(FileAttente *file) {
+void afficherFileAttente(FileAttente *file, Client* RacineClient) {
     if (file->debut == NULL) {
         printf("File d'attente vide.\n");
         return;
@@ -917,9 +917,9 @@ void afficherFileAttente(FileAttente *file) {
     printf("\n=== File d'attente ===\n");
     ClientFile *current = file->debut;
     int position = 1;
-    
     while (current != NULL) {
-        printf("%d. Client ID: %d\n", position++, current->idClient);
+        Client* C=chercherClientParID(RacineClient,current->idClient);
+        printf("%d. Client ID: %-10d Nom : %-10s  Total : %-10.2f \n", position++, current->idClient,C->nom,C->totalDepense);
         current = current->suivant;
     }
     printf("=====================\n");
@@ -1096,7 +1096,7 @@ void servirProchainClient(CaisseSystem *caisse) {
     // ÉTAPE 1: Vérifier si la file n'est pas vide
     if (caisse->fileAttente == NULL || caisse->fileAttente->debut == NULL) {
         printf("\n Aucun client en attente!\n");
-        afficherFileAttente(caisse->fileAttente);
+        afficherFileAttente(caisse->fileAttente,caisse->arbreClients->racine);
         return;
     }
     // ÉTAPE 2: Récupérer le premier client de la file (FIFO)
@@ -1280,7 +1280,7 @@ int menuCaisse() {
                 servirProchainClient(&caisse);  // & pour passer l'adresse
                 break;
             case 3:
-                afficherFileAttente(caisse.fileAttente);  // . car variable
+                afficherFileAttente(caisse.fileAttente,caisse.arbreClients->racine);  // . car variable
                 break;
             case 4:
                 ajouterPanierManuellement(&caisse);  // & pour passer l'adresse
