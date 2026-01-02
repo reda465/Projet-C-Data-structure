@@ -190,7 +190,7 @@
         fclose(file);
         return Arb;
     }
-    void switchf(int choix,ClientArbre* ar)
+    int switchf(int choix,ClientArbre* ar)
     {
         switch (choix)
         {
@@ -205,6 +205,7 @@
             TranslationNull(c.nom);
             c.totalDepense = 0;
             ar->racine = ajouterClient(ar->racine,c);
+            return 1;
             break;
         case 2:
         printf("Entrer le nom du client que vous chercher : ");
@@ -214,8 +215,10 @@
         if(buffer == NULL) printf("Client non trouvé \n");
         else printf("\n\nAffichage des informations du client %d :\n Nom : %s\t Total Depensé : %.2f \n\n",buffer->id,buffer->nom,buffer->totalDepense);
         break;
+        return 1;
         case 3:
         Infixe(ar->racine);
+        return 1;
         break;
         case 4:
         printf("Entrer le nom du client que vous voulez supprimer : ");
@@ -229,23 +232,25 @@
         else{
         ar->racine = supprimerClient(ar->racine,c);
         printf("Client supprimé avec succés\n");}
-
+        return 1;
         break;
         case 5:
         sauvegarderRecursive(ar->racine);
+        return 1;
         break;
         case 6:
         ar = chargerArbre(ar);
+        return 1;
         break;
         case 7:
-        Menu();
+        return 0;
         break;
         default:
             break;
         }
     }
     //affichage menu des options
-    void menuClients(void){ //inplement a better asthetic later 
+    int menuClients(void){ //inplement a better asthetic later 
         ClientArbre* ar;
         ar = InitArbre(ar);
         start:
@@ -259,9 +264,14 @@
             "7. Retour Au Menu Principale\n");
             int choix = forcerLireEntier();
             while(getchar() != '\n');
-            switchf(choix,ar);
+            int k;
+            k = switchf(choix,ar);
+            if(k == 0) return 0;
             goto start;
     }
+
+
+
     int hachage(int id) { 
         return id % Taille_Table; 
     } 
@@ -278,6 +288,7 @@
         printf("4)Rechercher un produit .\n");
         printf("5)Afficher la liste des produit .\n");
         printf("6)Sauvegarder la liste des produits.\n");
+        printf("7)Retour Au menu principale\n");
         printf("**************************************************\n");
     }
     int Lire_Choix(char *message,int from, int to){
@@ -576,7 +587,7 @@
         }
         fclose(pf);
     }
-    void Gestion_Produit(){
+    int Gestion_Produit(){
         char nom[20];
         stHach HashTable;
         initialiser_Table(HashTable.Table);
@@ -593,16 +604,19 @@
         Lire_Info(Produit);
         indexe=hachage(Produit->id);
         Ajouter_Produit(HashTable.Table,indexe,Produit);
+        return 1;
         break;
         case 2:
         id=Lire_Id("Entrez l'ID du produit que vous voulez modifier \n");
         indexe=hachage(id);
         modifier(HashTable.Table,indexe,id);
+        return 1;
         break;
         case 3:
         id=Lire_Id("Entrez l'ID du produit que vous voulez supprimer \n");
         indexe=hachage(id);
         supprimer(HashTable.Table,indexe,id);
+        return 1;
         break;
         case 4:
         Menu_Recherche();
@@ -619,6 +633,7 @@
         Rechercher_Par_nom(HashTable.Table,nom);
         break;
         }
+        return 1;
         break;
         case 5:
         Menu_affichage();
@@ -632,11 +647,17 @@
             Afficher_NonTrie(HashTable.Table);
             break;
         }
+        return 1;
         break;
         case 6:
         Sauvegarder(HashTable.Table);
+        return 1;
         break;
+        case 7:
+        printf("Retour Au Menu Principale ...");
+        return 0;
         }
+
     }while(choix!=0);
     }
     //                               partie passage_en_caisse                        //
@@ -648,8 +669,11 @@
 typedef struct {
     ClientFile *debut;
     ClientFile *fin;
-} FileAttente;
-//hado d sousi wlkn zedthom lo
+} FileAttente;//========================================partie historique========================================
+
+
+//structure de la transaction
+ // Chaque transaction correspond à un passage en caisse validé
 typedef struct Transaction {
     int id;
     int idClient;
@@ -659,11 +683,181 @@ typedef struct Transaction {
     struct Transaction *suivant;
 } Transaction;
 
+//structure de la Pile historique LIFO
+
+typedef struct {
+    Transaction *tete;
+    int nef;
+} historique;
+historique *historiqueGlobal=NULL;
+
+//Initialisation de la pile
+historique* initHistorique() {
+    historique *h =(historique*)malloc(sizeof(historique));
+    if (!h){
+        printf("erreur d'allocation memoire");
+        return NULL;
+    }
+    h->tete = NULL; 
+    h->nef = 0;
+    return h;
+}
+
+ // Crée une transaction à partir des informations de la caisse
+Transaction* creerTransaction(int id,int IdClient,char *nomclient,float total){
+Transaction *t= (Transaction*)malloc(sizeof(Transaction));
+if(!t){
+    printf("Erreur allocation Memoire");
+    return NULL;
+}
+t->id=id;
+t->idClient=IdClient;
+strcpy(t->nomClient,nomclient);
+t->total=total;
+time_t now = time(NULL);
+struct tm *tm_info=localtime(&now);
+strftime(t->dateHeure,20,"%Y-%m-%d %H:%M",tm_info);
+t->suivant=NULL;
+return t ;
+}
+//Empile une transaction dans l'historique
+void pushTransaction( historique *h ,Transaction *t){
+   if ( h==NULL || t==NULL)
+   return;
+   t->suivant= h->tete;
+   h->tete = t;
+   h->nef++;
+}
+// Depiler une transaction dans l'historique
+Transaction *popTransaction(historique *h){
+      if (h->nef==0){
+        printf("Historique vide");
+        return NULL;
+      }
+      Transaction *ptr=h->tete;
+      h->tete=ptr->suivant;
+      ptr->suivant=NULL;
+      h->nef--;
+      return ptr;
+}
+//Sauvegarde l'historique dans historique.txt
+void sauvegarderHistorique(historique *h) {
+    if (!h) 
+    return;
+
+    FILE *f=fopen("historique.txt","w");
+    if (!f) {
+        perror("Erreur ouverture historique.txt");
+        return;
+    }
+    // Parcours de la pile et écriture dans le fichier
+    Transaction *ptr=h->tete;
+    while (ptr) {
+        fprintf(f,"%d|%d|%s|%.2f|%s\n",ptr->id,ptr->idClient,ptr->nomClient,ptr->total,ptr->dateHeure);
+        ptr=ptr->suivant;
+    }
+
+    fclose(f);
+}
+// Charge l'historique depuis le fichier historique.txt
+historique* chargerHistorique() {
+    FILE *f=fopen("historique.txt","r");
+    historique *h=initHistorique();
+    if (!f)
+     return h;
+    
+    while (1) {
+        Transaction *t=malloc(sizeof(*t));
+        if (!t) 
+        break;
+
+        if (fscanf(f,"%d|%d|%[^|]|%f|%[^\n]\n",&t->id,&t->idClient,t->nomClient,&t->total,t->dateHeure)==5) {
+            t->suivant=h->tete;
+            h->tete=t;
+            h->nef++;
+        } else {
+            free(t);
+            break;
+        }
+    }
+    fclose(f);
+    return h;
+}
+
+// Affiche toutes les transactions de l'historique
+void afficherHistorique(historique *h){
+    if (h->nef==0){
+    printf("Historique vide");
+    return;
+}
+printf("=================HISTORIQUE DES TRANSACTIONS(%d)=================",h->nef);
+Transaction *ptr=h->tete;
+while (ptr!=NULL){
+    printf("ID:%d | Client:%s(%d) | Total:%.2f DH | Date:%s\n",ptr->id,ptr->nomClient,ptr->idClient,ptr->total,ptr->dateHeure);
+    ptr=ptr->suivant;
+}
+}
+
+  //Menu historique de gestion de l'historique
+int menuHistorique(historique *h) {
+    int choix;
+
+    do {
+        printf("\n========== MENU HISTORIQUE ==========\n");
+        printf("1. Afficher l'historique des transactions\n");
+        printf("2. Annuler la derniere transaction\n");
+        printf("0. Retour\n");
+        printf("Votre choix : ");
+        scanf("%d", &choix);
+        while (getchar() != '\n');
+
+        switch (choix) {
+            case 1:
+                afficherHistorique(h);
+                return 1;
+                break;
+
+            case 2: {
+                Transaction *t = popTransaction(h);
+                if (t != NULL) {
+                    printf("Transaction %d annulée (Client %s,%.2f DH)\n",
+                           t->id,t->nomClient,t->total);
+                    free(t);
+                    sauvegarderHistorique(h);
+                }
+                return 1;
+                break;
+            }
+
+            case 0:
+                printf("Retour au menu précédent...\n");
+                return 0;
+                break;
+
+            default:
+                printf("Choix invalide.\n");
+        }
+
+    } while (choix != 0);
+}
+// menu qui s'affiche a l'utilisateur
+int menuHistoriqueGlobal() {
+    if (historiqueGlobal == NULL) {
+        printf("Historique non initialisé.\n");
+        return 1;
+    }
+    int p;
+    p = menuHistorique(historiqueGlobal);
+    return p;
+
+}
+
+
 typedef struct CaisseSystem {
     ClientArbre *arbreClients;
     FileAttente *fileAttente;
     stHach *stockProduits;
-    Transaction *historique;
+    historique *historique;
     int dernierIDTransaction;
 } CaisseSystem;
 // Fonction pour initialiser une file d'attente
@@ -999,7 +1193,12 @@ void servirProchainClient(CaisseSystem *caisse) {
     printf("\n Mise à jour des informations client:\n");
     printf("  %s: %.2f DH → %.2f DH (+%.2f DH)\n", 
            client->nom, ancienTotal, client->totalDepense, totalVerifie);
-    
+//creation d'une transaction pour l'empiler dans l'historique (Aymen)
+    Transaction *t=creerTransaction(caisse->dernierIDTransaction++,client->id,client->nom,totalVerifie);
+    if (caisse->historique != NULL) {
+    pushTransaction(caisse->historique,t);
+    sauvegarderHistorique(caisse->historique);
+}
     // ÉTAPE 10: Générer le ticket
     genererEtSauvegarderTicket(client, produitsAchetes, quantites, caisse->stockProduits, nbProduits, totalVerifie);
     
@@ -1024,7 +1223,9 @@ void servirProchainClient(CaisseSystem *caisse) {
     printf("Montant total: %.2f DH\n", totalVerifie);
     printf("═══════════════════════════════════════════════════════════\n");
 }
-void menuCaisse() {
+
+
+int menuCaisse() {
     int choix;
     
     // INITIALISATION 
@@ -1039,7 +1240,8 @@ void menuCaisse() {
     charger(caisse.stockProduits->Table);  // Pas de &
     
     caisse.fileAttente = initFileAttente();
-    caisse.historique = NULL;
+    caisse.historique = historiqueGlobal;
+;
     caisse.dernierIDTransaction = 1;
         // BOUCLE DU MENU
     
@@ -1061,19 +1263,24 @@ void menuCaisse() {
                 printf("Entrez l'ID du client a ajouter: ");
                 scanf("%d", &idClient);
                 ajouterClientFile(caisse.fileAttente, idClient);  // . car variable
+                return 1;
                 break;
             }
             case 2:
                 servirProchainClient(&caisse);  // & pour passer l'adresse
+                return 1;
                 break;
             case 3:
                 afficherFileAttente(caisse.fileAttente);  // . car variable
+                return 1;
                 break;
             case 4:
                 ajouterPanierManuellement(&caisse);  // & pour passer l'adresse
+                return 1;
                 break;
             case 0:
-                printf("Retour au menu principal...\n");
+                printf("\nRetour au menu principal...\n");
+                return 0;
                 break;
             default:
                 printf("Choix invalide.\n");
@@ -1081,30 +1288,58 @@ void menuCaisse() {
     } while (choix != 0);
 }
 
+
+
+
+
+
+
+
+
+
+
 //                               partie main                        //
 #include <windows.h>
 
 int main() {
+    start:
     SetConsoleOutputCP(65001);
-    
-    printf("Bienvenu dans l'espace du supermarche\n"
+    historiqueGlobal = chargerHistorique(); 
+    printf("\n\nBienvenu dans l'espace du supermarche\n"
            "1. Espace Clients\n"
            "2. Espace Produits\n"
            "3. Passage en caisse\n"
+           "4. Menu Historique\n"
            "Choisir a quel espace vous voulez acceder: ");
     
     int choice;
-    scanf("%d", &choice);
+    scanf("%d",&choice);
     
     switch (choice) {
         case 1:
-            menuClients();
+        int p;
+            p = menuClients();
+            if (p==0)
+            goto start;
             break;
         case 2:
-            Gestion_Produit();
+        int l;
+            l = Gestion_Produit();
+            if (l==0)
+            goto start;
+
             break;
         case 3:
-            menuCaisse();  
+        int b;
+           b =  menuCaisse(); 
+           if (b==0) 
+           goto start;
+            break;
+        case 4:
+        int h;
+            h = menuHistoriqueGlobal();
+            if (h==0)
+            goto start;
             break;
         default:
             printf("Choix invalide!\n");
@@ -1113,4 +1348,3 @@ int main() {
     
     return 0;
 }
-    
